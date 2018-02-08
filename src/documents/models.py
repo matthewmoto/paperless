@@ -1,3 +1,5 @@
+# coding=utf-8
+
 import dateutil.parser
 import logging
 import os
@@ -89,7 +91,7 @@ class MatchingModel(models.Model):
             search_kwargs = {"flags": re.IGNORECASE}
 
         if self.matching_algorithm == self.MATCH_ALL:
-            for word in self.match.split(" "):
+            for word in self._split_match():
                 search_result = re.search(
                     r"\b{}\b".format(word), text, **search_kwargs)
                 if not search_result:
@@ -97,7 +99,7 @@ class MatchingModel(models.Model):
             return True
 
         if self.matching_algorithm == self.MATCH_ANY:
-            for word in self.match.split(" "):
+            for word in self._split_match():
                 if re.search(r"\b{}\b".format(word), text, **search_kwargs):
                     return True
             return False
@@ -188,13 +190,6 @@ class Document(models.Model):
     TYPE_TIF = "tiff"
     TYPES = (TYPE_PDF, TYPE_PNG, TYPE_JPG, TYPE_GIF, TYPE_TIF,)
 
-    STORAGE_TYPE_UNENCRYPTED = "unencrypted"
-    STORAGE_TYPE_GPG = "gpg"
-    STORAGE_TYPES = (
-        (STORAGE_TYPE_UNENCRYPTED, "Unencrypted"),
-        (STORAGE_TYPE_GPG, "Encrypted with GNU Privacy Guard")
-    )
-
     correspondent = models.ForeignKey(
         Correspondent,
         blank=True,
@@ -234,12 +229,6 @@ class Document(models.Model):
         default=timezone.now, db_index=True)
     modified = models.DateTimeField(
         auto_now=True, editable=False, db_index=True)
-    storage_type = models.CharField(
-        max_length=11,
-        choices=STORAGE_TYPES,
-        default=STORAGE_TYPE_GPG,
-        editable=False
-    )
 
     class Meta(object):
         ordering = ("correspondent", "title")
@@ -255,16 +244,11 @@ class Document(models.Model):
 
     @property
     def source_path(self):
-
-        file_name = "{:07}.{}".format(self.pk, self.file_type)
-        if self.storage_type == self.STORAGE_TYPE_GPG:
-            file_name += ".gpg"
-
         return os.path.join(
             settings.MEDIA_ROOT,
             "documents",
             "originals",
-            file_name
+            "{:07}.{}.gpg".format(self.pk, self.file_type)
         )
 
     @property
@@ -281,16 +265,11 @@ class Document(models.Model):
 
     @property
     def thumbnail_path(self):
-
-        file_name = "{:07}.png".format(self.pk)
-        if self.storage_type == self.STORAGE_TYPE_GPG:
-            file_name += ".gpg"
-
         return os.path.join(
             settings.MEDIA_ROOT,
             "documents",
             "thumbnails",
-            file_name
+            "{:07}.png.gpg".format(self.pk)
         )
 
     @property
